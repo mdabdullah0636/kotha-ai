@@ -16,10 +16,10 @@ import (
 )
 
 type mcpTool struct {
-	mcpName     string
-	tool        mcp.Tool
-	mcpConfig   config.MCPConfig
-	permissions permission.Service
+	mcpName        string
+	tool           mcp.Tool
+	mcpConfig      config.MCPConfig
+	permissions    permission.Service
 	configProvider config.ConfigProvider
 	logger         logging.Logger
 }

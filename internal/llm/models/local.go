@@ -10,8 +10,8 @@ import (
 	"strings"
 	"unicode"
 
-	"kotha/internal/logging"
 	"github.com/spf13/viper"
+	"kotha/internal/logging"
 )
 
 const (

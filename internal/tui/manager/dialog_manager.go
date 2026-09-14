@@ -10,15 +10,15 @@ import (
 var ErrDialogLimit = errors.New("dialog limit reached")
 
 type DialogConfig struct {
-	Name  string
-	View  func() string
-	SetSize func(width, height int)
+	Name     string
+	View     func() string
+	SetSize  func(width, height int)
 	Bindings func() []interface{}
 }
 
 type DialogManager struct {
-	active      map[string]bool
-	configs     map[string]*DialogConfig
+	active        map[string]bool
+	configs       map[string]*DialogConfig
 	maxConcurrent int
 }
 

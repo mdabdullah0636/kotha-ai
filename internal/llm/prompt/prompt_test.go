@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"kotha/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"kotha/internal/config"
 )
 
 func TestGetContextFromPaths(t *testing.T) {

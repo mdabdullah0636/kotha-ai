@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/genai"
 	"kotha/internal/config"
 	"kotha/internal/llm/tools"
 	"kotha/internal/logging"
 	"kotha/internal/message"
-	"google.golang.org/genai"
 )
 
 type geminiOptions struct {

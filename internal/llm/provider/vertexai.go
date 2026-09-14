@@ -4,8 +4,8 @@ import (
 	"context"
 	"os"
 
-	"kotha/internal/logging"
 	"google.golang.org/genai"
+	"kotha/internal/logging"
 )
 
 type VertexAIClient ProviderClient

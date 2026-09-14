@@ -97,13 +97,13 @@ var logsKeyReturnKey = key.NewBinding(
 )
 
 type appModel struct {
-	width, height      int
-	previousPage       page.PageID
-	pageManager        *manager.PageManager
-	dialogManager      *manager.DialogManager
-	status             core.StatusCmp
-	app                *app.App
-	selectedSession    session.Session
+	width, height   int
+	previousPage    page.PageID
+	pageManager     *manager.PageManager
+	dialogManager   *manager.DialogManager
+	status          core.StatusCmp
+	app             *app.App
+	selectedSession session.Session
 
 	permissions          dialog.PermissionDialogCmp
 	help                 dialog.HelpCmp
@@ -771,19 +771,19 @@ func New(app *app.App) tea.Model {
 	pageManager.RegisterPage(page.LogsPage, page.NewLogsPage())
 
 	model := &appModel{
-		pageManager:    pageManager,
-		status:         core.NewStatusCmp(app.LSPClients),
-		help:           dialog.NewHelpCmp(),
-		quit:           dialog.NewQuitCmp(),
-		sessionDialog:  dialog.NewSessionDialogCmp(),
-		commandDialog:  dialog.NewCommandDialogCmp(),
-		modelDialog:    dialog.NewModelDialogCmp(),
-		permissions:    dialog.NewPermissionDialogCmp(),
-		initDialog:     dialog.NewInitDialogCmp(),
-		themeDialog:    dialog.NewThemeDialogCmp(),
-		app:            app,
-		commands:       []dialog.Command{},
-		filepicker:     dialog.NewFilepickerCmp(app),
+		pageManager:   pageManager,
+		status:        core.NewStatusCmp(app.LSPClients),
+		help:          dialog.NewHelpCmp(),
+		quit:          dialog.NewQuitCmp(),
+		sessionDialog: dialog.NewSessionDialogCmp(),
+		commandDialog: dialog.NewCommandDialogCmp(),
+		modelDialog:   dialog.NewModelDialogCmp(),
+		permissions:   dialog.NewPermissionDialogCmp(),
+		initDialog:    dialog.NewInitDialogCmp(),
+		themeDialog:   dialog.NewThemeDialogCmp(),
+		app:           app,
+		commands:      []dialog.Command{},
+		filepicker:    dialog.NewFilepickerCmp(app),
 	}
 
 	dialogManager := manager.NewDialogManager(5)

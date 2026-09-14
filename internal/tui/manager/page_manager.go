@@ -5,8 +5,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"kotha/internal/tui/page"
 	"kotha/internal/tui/layout"
+	"kotha/internal/tui/page"
 )
 
 type PageManager struct {

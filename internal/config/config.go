@@ -32,14 +32,14 @@ type ShellConfig struct {
 
 // Config is the main configuration structure for the application.
 type Config struct {
-	Data         Data        `json:"data"`
-	WorkingDir   string      `json:"wd,omitempty"`
-	Debug        bool        `json:"debug,omitempty"`
-	DebugLSP     bool        `json:"debugLSP,omitempty"`
-	ContextPaths []string    `json:"contextPaths,omitempty"`
-	TUI          TUIConfig    `json:"tui"`
-	Shell        ShellConfig  `json:"shell,omitempty"`
-	Agents       map[AgentName]Agent `json:"agents,omitempty"`
+	Data         Data                       `json:"data"`
+	WorkingDir   string                     `json:"wd,omitempty"`
+	Debug        bool                       `json:"debug,omitempty"`
+	DebugLSP     bool                       `json:"debugLSP,omitempty"`
+	ContextPaths []string                   `json:"contextPaths,omitempty"`
+	TUI          TUIConfig                  `json:"tui"`
+	Shell        ShellConfig                `json:"shell,omitempty"`
+	Agents       map[AgentName]Agent        `json:"agents,omitempty"`
 	LSP          map[string]LSPServerConfig `json:"lsp,omitempty"`
 	MCPServers   map[string]MCPConfig       `json:"mcpServers,omitempty"`
 	Providers    map[string]ProviderConfig  `json:"providers,omitempty"`
