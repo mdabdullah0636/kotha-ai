@@ -27,6 +27,10 @@ func (m *PageManager) RegisterPage(id page.PageID, model tea.Model) {
 	m.pages[id] = model
 }
 
+func (m *PageManager) SetPage(id page.PageID, model tea.Model) {
+	m.pages[id] = model
+}
+
 func (m *PageManager) CurrentPage() page.PageID {
 	return m.currentPage
 }
