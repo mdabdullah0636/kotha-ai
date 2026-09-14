@@ -19,6 +19,7 @@ import (
 	"kotha/internal/tui/components/core"
 	"kotha/internal/tui/components/dialog"
 	"kotha/internal/tui/layout"
+	"kotha/internal/tui/manager"
 	"kotha/internal/tui/page"
 	"kotha/internal/tui/theme"
 	"kotha/internal/tui/util"
@@ -135,6 +136,8 @@ type appModel struct {
 
 	showMultiArgumentsDialog bool
 	multiArgumentsDialog     dialog.MultiArgumentsDialogCmp
+
+	overlayManager *manager.OverlayManager
 
 	isCompacting      bool
 	compactingMessage string
@@ -708,38 +711,46 @@ func (a appModel) View() string {
 
 	appView := lipgloss.JoinVertical(lipgloss.Top, components...)
 
-	if a.showPermissions {
-		overlay := a.permissions.View()
+	if a.showHelp {
+		bindings := layout.KeyMapToSlice(keys)
+		if p, ok := a.pages[a.currentPage].(layout.Bindings); ok {
+			bindings = append(bindings, p.BindingKeys()...)
+		}
+		if a.showPermissions {
+			bindings = append(bindings, a.permissions.BindingKeys()...)
+		}
+		if a.currentPage == page.LogsPage {
+			bindings = append(bindings, logsKeyReturnKey)
+		}
+		if !a.app.CoderAgent.IsBusy() {
+			bindings = append(bindings, helpEsc)
+		}
+		a.help.SetBindings(bindings)
+	}
+
+	om := a.overlayManager
+	om.Set("permissions", a.showPermissions, a.permissions.View)
+	om.Set("filepicker", a.showFilepicker, a.filepicker.View)
+	om.Set("help", a.showHelp, a.help.View)
+	om.Set("quit", a.showQuit, a.quit.View)
+	om.Set("sessionDialog", a.showSessionDialog, a.sessionDialog.View)
+	om.Set("modelDialog", a.showModelDialog, a.modelDialog.View)
+	om.Set("commandDialog", a.showCommandDialog, a.commandDialog.View)
+	om.Set("themeDialog", a.showThemeDialog, a.themeDialog.View)
+	om.Set("multiArgumentsDialog", a.showMultiArgumentsDialog, a.multiArgumentsDialog.View)
+
+	for _, view := range om.VisibleViews() {
+		overlay := view()
+		if overlay == "" {
+			continue
+		}
 		row := lipgloss.Height(appView) / 2
 		row -= lipgloss.Height(overlay) / 2
 		col := lipgloss.Width(appView) / 2
 		col -= lipgloss.Width(overlay) / 2
-		appView = layout.PlaceOverlay(
-			col,
-			row,
-			overlay,
-			appView,
-			true,
-		)
+		appView = layout.PlaceOverlay(col, row, overlay, appView, true)
 	}
 
-	if a.showFilepicker {
-		overlay := a.filepicker.View()
-		row := lipgloss.Height(appView) / 2
-		row -= lipgloss.Height(overlay) / 2
-		col := lipgloss.Width(appView) / 2
-		col -= lipgloss.Width(overlay) / 2
-		appView = layout.PlaceOverlay(
-			col,
-			row,
-			overlay,
-			appView,
-			true,
-		)
-
-	}
-
-	// Show compacting status overlay
 	if a.isCompacting {
 		t := theme.CurrentTheme()
 		style := lipgloss.NewStyle().
@@ -764,131 +775,11 @@ func (a appModel) View() string {
 		)
 	}
 
-	if a.showHelp {
-		bindings := layout.KeyMapToSlice(keys)
-		if p, ok := a.pages[a.currentPage].(layout.Bindings); ok {
-			bindings = append(bindings, p.BindingKeys()...)
-		}
-		if a.showPermissions {
-			bindings = append(bindings, a.permissions.BindingKeys()...)
-		}
-		if a.currentPage == page.LogsPage {
-			bindings = append(bindings, logsKeyReturnKey)
-		}
-		if !a.app.CoderAgent.IsBusy() {
-			bindings = append(bindings, helpEsc)
-		}
-		a.help.SetBindings(bindings)
-
-		overlay := a.help.View()
-		row := lipgloss.Height(appView) / 2
-		row -= lipgloss.Height(overlay) / 2
-		col := lipgloss.Width(appView) / 2
-		col -= lipgloss.Width(overlay) / 2
-		appView = layout.PlaceOverlay(
-			col,
-			row,
-			overlay,
-			appView,
-			true,
-		)
-	}
-
-	if a.showQuit {
-		overlay := a.quit.View()
-		row := lipgloss.Height(appView) / 2
-		row -= lipgloss.Height(overlay) / 2
-		col := lipgloss.Width(appView) / 2
-		col -= lipgloss.Width(overlay) / 2
-		appView = layout.PlaceOverlay(
-			col,
-			row,
-			overlay,
-			appView,
-			true,
-		)
-	}
-
-	if a.showSessionDialog {
-		overlay := a.sessionDialog.View()
-		row := lipgloss.Height(appView) / 2
-		row -= lipgloss.Height(overlay) / 2
-		col := lipgloss.Width(appView) / 2
-		col -= lipgloss.Width(overlay) / 2
-		appView = layout.PlaceOverlay(
-			col,
-			row,
-			overlay,
-			appView,
-			true,
-		)
-	}
-
-	if a.showModelDialog {
-		overlay := a.modelDialog.View()
-		row := lipgloss.Height(appView) / 2
-		row -= lipgloss.Height(overlay) / 2
-		col := lipgloss.Width(appView) / 2
-		col -= lipgloss.Width(overlay) / 2
-		appView = layout.PlaceOverlay(
-			col,
-			row,
-			overlay,
-			appView,
-			true,
-		)
-	}
-
-	if a.showCommandDialog {
-		overlay := a.commandDialog.View()
-		row := lipgloss.Height(appView) / 2
-		row -= lipgloss.Height(overlay) / 2
-		col := lipgloss.Width(appView) / 2
-		col -= lipgloss.Width(overlay) / 2
-		appView = layout.PlaceOverlay(
-			col,
-			row,
-			overlay,
-			appView,
-			true,
-		)
-	}
-
 	if a.showInitDialog {
 		overlay := a.initDialog.View()
 		appView = layout.PlaceOverlay(
 			a.width/2-lipgloss.Width(overlay)/2,
 			a.height/2-lipgloss.Height(overlay)/2,
-			overlay,
-			appView,
-			true,
-		)
-	}
-
-	if a.showThemeDialog {
-		overlay := a.themeDialog.View()
-		row := lipgloss.Height(appView) / 2
-		row -= lipgloss.Height(overlay) / 2
-		col := lipgloss.Width(appView) / 2
-		col -= lipgloss.Width(overlay) / 2
-		appView = layout.PlaceOverlay(
-			col,
-			row,
-			overlay,
-			appView,
-			true,
-		)
-	}
-
-	if a.showMultiArgumentsDialog {
-		overlay := a.multiArgumentsDialog.View()
-		row := lipgloss.Height(appView) / 2
-		row -= lipgloss.Height(overlay) / 2
-		col := lipgloss.Width(appView) / 2
-		col -= lipgloss.Width(overlay) / 2
-		appView = layout.PlaceOverlay(
-			col,
-			row,
 			overlay,
 			appView,
 			true,
@@ -918,7 +809,8 @@ func New(app *app.App) tea.Model {
 			page.ChatPage: page.NewChatPage(app),
 			page.LogsPage: page.NewLogsPage(),
 		},
-		filepicker: dialog.NewFilepickerCmp(app),
+		filepicker:     dialog.NewFilepickerCmp(app),
+		overlayManager: manager.NewOverlayManager(),
 	}
 
 	model.RegisterCommand(dialog.Command{

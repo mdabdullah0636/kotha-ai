@@ -74,6 +74,16 @@ func (m *OverlayManager) View(appView string) string {
 	return strings.Join(overlays, "") + appView
 }
 
+func (m *OverlayManager) VisibleViews() []func() string {
+	var views []func() string
+	for _, name := range m.order {
+		if entry, ok := m.overlays[name]; ok && entry.Visible {
+			views = append(views, entry.View)
+		}
+	}
+	return views
+}
+
 func (m *OverlayManager) VisibleNames() []string {
 	names := make([]string, 0)
 	for _, name := range m.order {

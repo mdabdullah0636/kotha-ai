@@ -37,6 +37,9 @@ Thumbs.db
 /bin/
 /dist/
 
+# Temp directory
+.tmp/
+
 # Local environment variables
 .env
 .env.local
