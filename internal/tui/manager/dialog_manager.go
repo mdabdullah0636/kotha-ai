@@ -2,6 +2,7 @@ package manager
 
 import (
 	"errors"
+	"slices"
 
 	"github.com/charmbracelet/lipgloss"
 	"kotha/internal/tui/layout"
@@ -65,6 +66,7 @@ func (m *DialogManager) ActiveNames() []string {
 	for name := range m.active {
 		names = append(names, name)
 	}
+	slices.Sort(names)
 	return names
 }
 
