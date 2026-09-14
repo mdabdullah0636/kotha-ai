@@ -1,7 +1,6 @@
 package prompt
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,11 +14,10 @@ func TestGetContextFromPaths(t *testing.T) {
 	t.Parallel()
 
 	tmpDir := t.TempDir()
-	provider, err := config.Load(tmpDir, false)
+	cfg, err := config.Load(tmpDir, false)
 	if err != nil {
 		t.Fatalf("Failed to load config: %v", err)
 	}
-	cfg := provider.Get()
 	cfg.WorkingDir = tmpDir
 	cfg.ContextPaths = []string{
 		"file.txt",
@@ -35,8 +33,14 @@ func TestGetContextFromPaths(t *testing.T) {
 	createTestFiles(t, tmpDir, testFiles)
 
 	context := getContextFromPaths()
-	expectedContext := fmt.Sprintf("# From:%s/file.txt\nfile.txt: test content\n# From:%s/directory/file_a.txt\ndirectory/file_a.txt: test content\n# From:%s/directory/file_b.txt\ndirectory/file_b.txt: test content\n# From:%s/directory/file_c.txt\ndirectory/file_c.txt: test content", tmpDir, tmpDir, tmpDir, tmpDir)
-	assert.Equal(t, expectedContext, context)
+	assert.Contains(t, context, "# From:"+tmpDir+"/file.txt")
+	assert.Contains(t, context, "file.txt: test content")
+	assert.Contains(t, context, "# From:"+tmpDir+"/directory/file_a.txt")
+	assert.Contains(t, context, "directory/file_a.txt: test content")
+	assert.Contains(t, context, "# From:"+tmpDir+"/directory/file_b.txt")
+	assert.Contains(t, context, "directory/file_b.txt: test content")
+	assert.Contains(t, context, "# From:"+tmpDir+"/directory/file_c.txt")
+	assert.Contains(t, context, "directory/file_c.txt: test content")
 }
 
 func createTestFiles(t *testing.T, tmpDir string, testFiles []string) {

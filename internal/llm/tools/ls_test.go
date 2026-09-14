@@ -128,6 +128,10 @@ func TestLsTool_Run(t *testing.T) {
 	})
 
 	t.Run("handles empty path parameter", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		_, err := config.Load(tmpDir, false)
+		require.NoError(t, err)
+
 		tool := NewLsTool()
 		params := LSParams{
 			Path: "",
