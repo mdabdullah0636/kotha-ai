@@ -2,6 +2,9 @@ package manager
 
 import (
 	"errors"
+
+	"github.com/charmbracelet/lipgloss"
+	"kotha/internal/tui/layout"
 )
 
 var ErrDialogLimit = errors.New("dialog limit reached")
@@ -70,9 +73,22 @@ func (m *DialogManager) HasAny() bool {
 }
 
 func (m *DialogManager) View(appView string) string {
-	// Returns combined dialog views overlayed on appView
-	// Uses the OverlayManager pattern internally
-	return ""
+	for _, name := range m.ActiveNames() {
+		config, ok := m.configs[name]
+		if !ok {
+			continue
+		}
+		overlay := config.View()
+		if overlay == "" {
+			continue
+		}
+		row := lipgloss.Height(appView) / 2
+		row -= lipgloss.Height(overlay) / 2
+		col := lipgloss.Width(appView) / 2
+		col -= lipgloss.Width(overlay) / 2
+		appView = layout.PlaceOverlay(col, row, overlay, appView, true)
+	}
+	return appView
 }
 
 func (m *DialogManager) SetSizeAll(width, height int) {

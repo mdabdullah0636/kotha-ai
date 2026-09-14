@@ -100,42 +100,22 @@ type appModel struct {
 	width, height      int
 	previousPage       page.PageID
 	pageManager        *manager.PageManager
+	dialogManager      *manager.DialogManager
 	status             core.StatusCmp
 	app                *app.App
 	selectedSession    session.Session
 
-	showPermissions bool
-	permissions     dialog.PermissionDialogCmp
-
-	showHelp bool
-	help     dialog.HelpCmp
-
-	showQuit bool
-	quit     dialog.QuitDialog
-
-	showSessionDialog bool
-	sessionDialog     dialog.SessionDialog
-
-	showCommandDialog bool
-	commandDialog     dialog.CommandDialog
-	commands          []dialog.Command
-
-	showModelDialog bool
-	modelDialog     dialog.ModelDialog
-
-	showInitDialog bool
-	initDialog     dialog.InitDialogCmp
-
-	showFilepicker bool
-	filepicker     dialog.FilepickerCmp
-
-	showThemeDialog bool
-	themeDialog     dialog.ThemeDialog
-
-	showMultiArgumentsDialog bool
-	multiArgumentsDialog     dialog.MultiArgumentsDialogCmp
-
-	overlayManager *manager.OverlayManager
+	permissions          dialog.PermissionDialogCmp
+	help                 dialog.HelpCmp
+	quit                 dialog.QuitDialog
+	sessionDialog        dialog.SessionDialog
+	commandDialog        dialog.CommandDialog
+	commands             []dialog.Command
+	modelDialog          dialog.ModelDialog
+	initDialog           dialog.InitDialogCmp
+	filepicker           dialog.FilepickerCmp
+	themeDialog          dialog.ThemeDialog
+	multiArgumentsDialog dialog.MultiArgumentsDialogCmp
 
 	isCompacting      bool
 	compactingMessage string
@@ -214,9 +194,9 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.filepicker = filepicker.(dialog.FilepickerCmp)
 		cmds = append(cmds, filepickerCmd)
 
-		a.initDialog.SetSize(msg.Width, msg.Height)
+		a.dialogManager.SetSizeAll(msg.Width, msg.Height)
 
-		if a.showMultiArgumentsDialog {
+		if a.dialogManager.IsActive("multiArgumentsDialog") {
 			a.multiArgumentsDialog.SetSize(msg.Width, msg.Height)
 			args, argsCmd := a.multiArgumentsDialog.Update(msg)
 			a.multiArgumentsDialog = args.(dialog.MultiArgumentsDialogCmp)
@@ -275,7 +255,9 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Permission
 	case pubsub.Event[permission.PermissionRequest]:
-		a.showPermissions = true
+		if err := a.dialogManager.Show("permissions"); err != nil {
+			return a, util.ReportError(err)
+		}
 		return a, a.permissions.SetPermissions(msg.Payload)
 	case dialog.PermissionResponseMsg:
 		var cmd tea.Cmd
@@ -287,22 +269,22 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case dialog.PermissionDeny:
 			a.app.Permissions.Deny(msg.Permission)
 		}
-		a.showPermissions = false
+		a.dialogManager.Hide("permissions")
 		return a, cmd
 
 	case page.PageChangeMsg:
 		return a, a.moveToPage(msg.ID)
 
 	case dialog.CloseQuitMsg:
-		a.showQuit = false
+		a.dialogManager.Hide("quit")
 		return a, nil
 
 	case dialog.CloseSessionDialogMsg:
-		a.showSessionDialog = false
+		a.dialogManager.Hide("sessionDialog")
 		return a, nil
 
 	case dialog.CloseCommandDialogMsg:
-		a.showCommandDialog = false
+		a.dialogManager.Hide("commandDialog")
 		return a, nil
 
 	case startCompactSessionMsg:
@@ -346,7 +328,7 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case dialog.CloseThemeDialogMsg:
-		a.showThemeDialog = false
+		a.dialogManager.Hide("themeDialog")
 		return a, nil
 
 	case dialog.ThemeChangedMsg:
@@ -354,15 +336,15 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		currModel := a.pageManager.CurrentModel()
 		currModel, cmd = currModel.Update(msg)
 		a.pageManager.SetPage(currPage, currModel)
-		a.showThemeDialog = false
+		a.dialogManager.Hide("themeDialog")
 		return a, tea.Batch(cmd, util.ReportInfo("Theme changed to: "+msg.ThemeName))
 
 	case dialog.CloseModelDialogMsg:
-		a.showModelDialog = false
+		a.dialogManager.Hide("modelDialog")
 		return a, nil
 
 	case dialog.ModelSelectedMsg:
-		a.showModelDialog = false
+		a.dialogManager.Hide("modelDialog")
 
 		model, err := a.app.CoderAgent.Update(config.AgentCoder, msg.Model.ID)
 		if err != nil {
@@ -372,11 +354,17 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, util.ReportInfo(fmt.Sprintf("Model changed to %s", model.Name))
 
 	case dialog.ShowInitDialogMsg:
-		a.showInitDialog = msg.Show
+		if msg.Show {
+			if err := a.dialogManager.Show("initDialog"); err != nil {
+				return a, util.ReportError(err)
+			}
+		} else {
+			a.dialogManager.Hide("initDialog")
+		}
 		return a, nil
 
 	case dialog.CloseInitDialogMsg:
-		a.showInitDialog = false
+		a.dialogManager.Hide("initDialog")
 		if msg.Initialize {
 			// Run the initialization command
 			for _, cmd := range a.commands {
@@ -405,14 +393,14 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.selectedSession = msg.Payload
 		}
 	case dialog.SessionSelectedMsg:
-		a.showSessionDialog = false
+		a.dialogManager.Hide("sessionDialog")
 		if a.pageManager.CurrentPage() == page.ChatPage {
 			return a, util.CmdHandler(chat.SessionSelectedMsg(msg.Session))
 		}
 		return a, nil
 
 	case dialog.CommandSelectedMsg:
-		a.showCommandDialog = false
+		a.dialogManager.Hide("commandDialog")
 		// Execute the command handler if available
 		if msg.Command.Handler != nil {
 			return a, msg.Command.Handler(msg.Command)
@@ -422,12 +410,14 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case dialog.ShowMultiArgumentsDialogMsg:
 		// Show multi-arguments dialog
 		a.multiArgumentsDialog = dialog.NewMultiArgumentsDialogCmp(msg.CommandID, msg.Content, msg.ArgNames)
-		a.showMultiArgumentsDialog = true
+		if err := a.dialogManager.Show("multiArgumentsDialog"); err != nil {
+			return a, util.ReportError(err)
+		}
 		return a, a.multiArgumentsDialog.Init()
 
 	case dialog.CloseMultiArgumentsDialogMsg:
 		// Close multi-arguments dialog
-		a.showMultiArgumentsDialog = false
+		a.dialogManager.Hide("multiArgumentsDialog")
 
 		// If submitted, replace all named arguments and run the command
 		if msg.Submit {
@@ -448,8 +438,7 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case tea.KeyMsg:
-		// If multi-arguments dialog is open, let it handle the key press first
-		if a.showMultiArgumentsDialog {
+		if a.dialogManager.IsActive("multiArgumentsDialog") {
 			args, cmd := a.multiArgumentsDialog.Update(msg)
 			a.multiArgumentsDialog = args.(dialog.MultiArgumentsDialogCmp)
 			return a, cmd
@@ -458,30 +447,17 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 
 		case key.Matches(msg, keys.Quit):
-			a.showQuit = !a.showQuit
-			if a.showHelp {
-				a.showHelp = false
-			}
-			if a.showSessionDialog {
-				a.showSessionDialog = false
-			}
-			if a.showCommandDialog {
-				a.showCommandDialog = false
-			}
-			if a.showFilepicker {
-				a.showFilepicker = false
-				a.filepicker.ToggleFilepicker(a.showFilepicker)
-			}
-			if a.showModelDialog {
-				a.showModelDialog = false
-			}
-			if a.showMultiArgumentsDialog {
-				a.showMultiArgumentsDialog = false
-			}
+			a.toggleDialog("quit")
+			a.closeDialog("help")
+			a.closeDialog("sessionDialog")
+			a.closeDialog("commandDialog")
+			a.closeDialog("filepicker")
+			a.closeDialog("modelDialog")
+			a.closeDialog("multiArgumentsDialog")
+			a.filepicker.ToggleFilepicker(false)
 			return a, nil
 		case key.Matches(msg, keys.SwitchSession):
-			if a.pageManager.CurrentPage() == page.ChatPage && !a.showQuit && !a.showPermissions && !a.showCommandDialog {
-				// Load sessions and show the dialog
+			if a.pageManager.CurrentPage() == page.ChatPage && a.dialogsInactive("quit", "permissions", "commandDialog") {
 				sessions, err := a.app.Sessions.List(context.Background())
 				if err != nil {
 					return a, util.ReportError(err)
@@ -490,36 +466,41 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return a, util.ReportWarn("No sessions available")
 				}
 				a.sessionDialog.SetSessions(sessions)
-				a.showSessionDialog = true
+				if err := a.dialogManager.Show("sessionDialog"); err != nil {
+					return a, util.ReportError(err)
+				}
 				return a, nil
 			}
 			return a, nil
 		case key.Matches(msg, keys.Commands):
-			if a.pageManager.CurrentPage() == page.ChatPage && !a.showQuit && !a.showPermissions && !a.showSessionDialog && !a.showThemeDialog && !a.showFilepicker {
-				// Show commands dialog
+			if a.pageManager.CurrentPage() == page.ChatPage && a.dialogsInactive("quit", "permissions", "sessionDialog", "themeDialog", "filepicker") {
 				if len(a.commands) == 0 {
 					return a, util.ReportWarn("No commands available")
 				}
 				a.commandDialog.SetCommands(a.commands)
-				a.showCommandDialog = true
+				if err := a.dialogManager.Show("commandDialog"); err != nil {
+					return a, util.ReportError(err)
+				}
 				return a, nil
 			}
 			return a, nil
 		case key.Matches(msg, keys.Models):
-			if a.showModelDialog {
-				a.showModelDialog = false
+			if a.dialogManager.IsActive("modelDialog") {
+				a.dialogManager.Hide("modelDialog")
 				return a, nil
 			}
-			if a.pageManager.CurrentPage() == page.ChatPage && !a.showQuit && !a.showPermissions && !a.showSessionDialog && !a.showCommandDialog {
-				a.showModelDialog = true
+			if a.pageManager.CurrentPage() == page.ChatPage && a.dialogsInactive("quit", "permissions", "sessionDialog", "commandDialog") {
+				if err := a.dialogManager.Show("modelDialog"); err != nil {
+					return a, util.ReportError(err)
+				}
 				return a, nil
 			}
 			return a, nil
 		case key.Matches(msg, keys.SwitchTheme):
-			if !a.showQuit && !a.showPermissions && !a.showSessionDialog && !a.showCommandDialog {
-				// Show theme switcher dialog
-				a.showThemeDialog = true
-				// Theme list is dynamically loaded by the dialog component
+			if a.dialogsInactive("quit", "permissions", "sessionDialog", "commandDialog") {
+				if err := a.dialogManager.Show("themeDialog"); err != nil {
+					return a, util.ReportError(err)
+				}
 				return a, a.themeDialog.Init()
 			}
 			return a, nil
@@ -529,25 +510,24 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return a, a.moveToPage(page.ChatPage)
 				}
 			} else if !a.filepicker.IsCWDFocused() {
-				if a.showQuit {
-					a.showQuit = !a.showQuit
+				if a.dialogManager.IsActive("quit") {
+					a.toggleDialog("quit")
 					return a, nil
 				}
-				if a.showHelp {
-					a.showHelp = !a.showHelp
+				if a.dialogManager.IsActive("help") {
+					a.toggleDialog("help")
 					return a, nil
 				}
-				if a.showInitDialog {
-					a.showInitDialog = false
-					// Mark the project as initialized without running the command
+				if a.dialogManager.IsActive("initDialog") {
+					a.dialogManager.Hide("initDialog")
 					if err := config.MarkProjectInitialized(); err != nil {
 						return a, util.ReportError(err)
 					}
 					return a, nil
 				}
-				if a.showFilepicker {
-					a.showFilepicker = false
-					a.filepicker.ToggleFilepicker(a.showFilepicker)
+				if a.dialogManager.IsActive("filepicker") {
+					a.dialogManager.Hide("filepicker")
+					a.filepicker.ToggleFilepicker(false)
 					return a, nil
 				}
 				if a.pageManager.CurrentPage() == page.LogsPage {
@@ -557,22 +537,26 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.Logs):
 			return a, a.moveToPage(page.LogsPage)
 		case key.Matches(msg, keys.Help):
-			if a.showQuit {
+			if a.dialogManager.IsActive("quit") {
 				return a, nil
 			}
-			a.showHelp = !a.showHelp
+			a.toggleDialog("help")
 			return a, nil
 		case key.Matches(msg, helpEsc):
 			if a.app.CoderAgent.IsBusy() {
-				if a.showQuit {
+				if a.dialogManager.IsActive("quit") {
 					return a, nil
 				}
-				a.showHelp = !a.showHelp
+				a.toggleDialog("help")
 				return a, nil
 			}
 		case key.Matches(msg, keys.Filepicker):
-			a.showFilepicker = !a.showFilepicker
-			a.filepicker.ToggleFilepicker(a.showFilepicker)
+			a.toggleDialog("filepicker")
+			if a.dialogManager.IsActive("filepicker") {
+				a.filepicker.ToggleFilepicker(true)
+			} else {
+				a.filepicker.ToggleFilepicker(false)
+			}
 			return a, nil
 		}
 	default:
@@ -582,80 +566,72 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	}
 
-	if a.showFilepicker {
+	if a.dialogManager.IsActive("filepicker") {
 		f, filepickerCmd := a.filepicker.Update(msg)
 		a.filepicker = f.(dialog.FilepickerCmp)
 		cmds = append(cmds, filepickerCmd)
-		// Only block key messages send all other messages down
 		if _, ok := msg.(tea.KeyMsg); ok {
 			return a, tea.Batch(cmds...)
 		}
 	}
 
-	if a.showQuit {
+	if a.dialogManager.IsActive("quit") {
 		q, quitCmd := a.quit.Update(msg)
 		a.quit = q.(dialog.QuitDialog)
 		cmds = append(cmds, quitCmd)
-		// Only block key messages send all other messages down
 		if _, ok := msg.(tea.KeyMsg); ok {
 			return a, tea.Batch(cmds...)
 		}
 	}
-	if a.showPermissions {
+	if a.dialogManager.IsActive("permissions") {
 		d, permissionsCmd := a.permissions.Update(msg)
 		a.permissions = d.(dialog.PermissionDialogCmp)
 		cmds = append(cmds, permissionsCmd)
-		// Only block key messages send all other messages down
 		if _, ok := msg.(tea.KeyMsg); ok {
 			return a, tea.Batch(cmds...)
 		}
 	}
 
-	if a.showSessionDialog {
+	if a.dialogManager.IsActive("sessionDialog") {
 		d, sessionCmd := a.sessionDialog.Update(msg)
 		a.sessionDialog = d.(dialog.SessionDialog)
 		cmds = append(cmds, sessionCmd)
-		// Only block key messages send all other messages down
 		if _, ok := msg.(tea.KeyMsg); ok {
 			return a, tea.Batch(cmds...)
 		}
 	}
 
-	if a.showCommandDialog {
+	if a.dialogManager.IsActive("commandDialog") {
 		d, commandCmd := a.commandDialog.Update(msg)
 		a.commandDialog = d.(dialog.CommandDialog)
 		cmds = append(cmds, commandCmd)
-		// Only block key messages send all other messages down
 		if _, ok := msg.(tea.KeyMsg); ok {
 			return a, tea.Batch(cmds...)
 		}
 	}
 
-	if a.showModelDialog {
+	if a.dialogManager.IsActive("modelDialog") {
 		d, modelCmd := a.modelDialog.Update(msg)
 		a.modelDialog = d.(dialog.ModelDialog)
 		cmds = append(cmds, modelCmd)
-		// Only block key messages send all other messages down
 		if _, ok := msg.(tea.KeyMsg); ok {
 			return a, tea.Batch(cmds...)
 		}
 	}
 
-	if a.showInitDialog {
+	if a.dialogManager.IsActive("initDialog") {
 		d, initCmd := a.initDialog.Update(msg)
 		a.initDialog = d.(dialog.InitDialogCmp)
 		cmds = append(cmds, initCmd)
-		// Only block key messages send all other messages down
 		if _, ok := msg.(tea.KeyMsg); ok {
 			return a, tea.Batch(cmds...)
 		}
 	}
 
-	if a.showThemeDialog {
+	if a.dialogManager.IsActive("themeDialog") {
 		d, themeCmd := a.themeDialog.Update(msg)
 		a.themeDialog = d.(dialog.ThemeDialog)
 		cmds = append(cmds, themeCmd)
-		// Only block key messages send all other messages down
 		if _, ok := msg.(tea.KeyMsg); ok {
 			return a, tea.Batch(cmds...)
 		}
@@ -685,6 +661,30 @@ func (a *appModel) findCommand(id string) (dialog.Command, bool) {
 	return dialog.Command{}, false
 }
 
+func (a *appModel) toggleDialog(name string) tea.Cmd {
+	if a.dialogManager.IsActive(name) {
+		a.dialogManager.Hide(name)
+		return nil
+	}
+	if err := a.dialogManager.Show(name); err != nil {
+		return util.ReportError(err)
+	}
+	return nil
+}
+
+func (a *appModel) closeDialog(name string) {
+	a.dialogManager.Hide(name)
+}
+
+func (a *appModel) dialogsInactive(names ...string) bool {
+	for _, n := range names {
+		if a.dialogManager.IsActive(n) {
+			return false
+		}
+	}
+	return true
+}
+
 func (a *appModel) moveToPage(pageID page.PageID) tea.Cmd {
 	cmd, err := a.pageManager.MoveTo(pageID, func() bool { return a.app.CoderAgent.IsBusy() })
 	if err != nil {
@@ -707,12 +707,12 @@ func (a appModel) View() string {
 
 	appView := lipgloss.JoinVertical(lipgloss.Top, components...)
 
-	if a.showHelp {
+	if a.dialogManager.IsActive("help") {
 		bindings := layout.KeyMapToSlice(keys)
 		if p, ok := a.pageManager.CurrentModel().(layout.Bindings); ok {
 			bindings = append(bindings, p.BindingKeys()...)
 		}
-		if a.showPermissions {
+		if a.dialogManager.IsActive("permissions") {
 			bindings = append(bindings, a.permissions.BindingKeys()...)
 		}
 		if a.pageManager.CurrentPage() == page.LogsPage {
@@ -724,28 +724,7 @@ func (a appModel) View() string {
 		a.help.SetBindings(bindings)
 	}
 
-	om := a.overlayManager
-	om.Set("permissions", a.showPermissions, a.permissions.View)
-	om.Set("filepicker", a.showFilepicker, a.filepicker.View)
-	om.Set("help", a.showHelp, a.help.View)
-	om.Set("quit", a.showQuit, a.quit.View)
-	om.Set("sessionDialog", a.showSessionDialog, a.sessionDialog.View)
-	om.Set("modelDialog", a.showModelDialog, a.modelDialog.View)
-	om.Set("commandDialog", a.showCommandDialog, a.commandDialog.View)
-	om.Set("themeDialog", a.showThemeDialog, a.themeDialog.View)
-	om.Set("multiArgumentsDialog", a.showMultiArgumentsDialog, a.multiArgumentsDialog.View)
-
-	for _, view := range om.VisibleViews() {
-		overlay := view()
-		if overlay == "" {
-			continue
-		}
-		row := lipgloss.Height(appView) / 2
-		row -= lipgloss.Height(overlay) / 2
-		col := lipgloss.Width(appView) / 2
-		col -= lipgloss.Width(overlay) / 2
-		appView = layout.PlaceOverlay(col, row, overlay, appView, true)
-	}
+	appView = a.dialogManager.View(appView)
 
 	if a.isCompacting {
 		t := theme.CurrentTheme()
@@ -771,7 +750,7 @@ func (a appModel) View() string {
 		)
 	}
 
-	if a.showInitDialog {
+	if a.dialogManager.IsActive("initDialog") {
 		overlay := a.initDialog.View()
 		appView = layout.PlaceOverlay(
 			a.width/2-lipgloss.Width(overlay)/2,
@@ -792,21 +771,35 @@ func New(app *app.App) tea.Model {
 	pageManager.RegisterPage(page.LogsPage, page.NewLogsPage())
 
 	model := &appModel{
-		pageManager:     pageManager,
-		status:          core.NewStatusCmp(app.LSPClients),
-		help:            dialog.NewHelpCmp(),
-		quit:            dialog.NewQuitCmp(),
-		sessionDialog:   dialog.NewSessionDialogCmp(),
-		commandDialog:   dialog.NewCommandDialogCmp(),
-		modelDialog:     dialog.NewModelDialogCmp(),
-		permissions:     dialog.NewPermissionDialogCmp(),
-		initDialog:      dialog.NewInitDialogCmp(),
-		themeDialog:     dialog.NewThemeDialogCmp(),
-		app:             app,
-		commands:        []dialog.Command{},
-		filepicker:      dialog.NewFilepickerCmp(app),
-		overlayManager:  manager.NewOverlayManager(),
+		pageManager:    pageManager,
+		status:         core.NewStatusCmp(app.LSPClients),
+		help:           dialog.NewHelpCmp(),
+		quit:           dialog.NewQuitCmp(),
+		sessionDialog:  dialog.NewSessionDialogCmp(),
+		commandDialog:  dialog.NewCommandDialogCmp(),
+		modelDialog:    dialog.NewModelDialogCmp(),
+		permissions:    dialog.NewPermissionDialogCmp(),
+		initDialog:     dialog.NewInitDialogCmp(),
+		themeDialog:    dialog.NewThemeDialogCmp(),
+		app:            app,
+		commands:       []dialog.Command{},
+		filepicker:     dialog.NewFilepickerCmp(app),
 	}
+
+	dialogManager := manager.NewDialogManager(5)
+	names := []string{"help", "permissions", "quit", "sessionDialog", "commandDialog", "modelDialog", "initDialog", "themeDialog", "filepicker", "multiArgumentsDialog"}
+	views := []func() string{
+		model.help.View, model.permissions.View, model.quit.View,
+		model.sessionDialog.View, model.commandDialog.View, model.modelDialog.View,
+		model.initDialog.View, model.themeDialog.View, model.filepicker.View, model.multiArgumentsDialog.View,
+	}
+	for i, name := range names {
+		dialogManager.Register(name, manager.DialogConfig{
+			Name: name,
+			View: views[i],
+		})
+	}
+	model.dialogManager = dialogManager
 
 	model.RegisterCommand(dialog.Command{
 		ID:          "init",
