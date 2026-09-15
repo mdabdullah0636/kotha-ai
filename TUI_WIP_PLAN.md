@@ -21,9 +21,9 @@
 ### Session 2 Completed ✅
 - Layout tests: 81.9% coverage (KeyMapToSlice, Container, SplitPane, PlaceOverlay)
 - Styles tests: 72.2% coverage (BaseStyle, Regular, Muted, Bold, Padded, Borders, Colors)
-- Dialog tests: 8.4% (ConfirmDialog, InitDialog)
+- Dialog tests: 18.2% (ConfirmDialog, InitDialog, QuitDialog, CommandDialog, ThemeDialog)
 - Page tests: 9.7% (types, LogsPage, keyMap)
-- Overall coverage: 68.8% → 69.8%
+- Overall coverage: 68.8% → 70.2%
 
 ---
 
@@ -56,6 +56,7 @@
 ### Done ✅
 - 2.1 Layout: 81.9% (layout_test.go, container_test.go, overlay_test.go, split_test.go)
 - 2.2 Styles: 72.2% (styles_test.go, background_test.go, icons_test.go)
+- 2.3 Dialog: 18.2% (confirm_test.go, init_test.go, quit_test.go, commands_test.go, theme_test.go)
 
 ### Pending
 #### 2.3 Add tests for dialog components
@@ -148,9 +149,10 @@
 | Metric | Current | Target |
 |--------|---------|--------|
 | tui.go lines | 845 | ~500 |
-| Test coverage (overall) | 69.8% | 60%+ ✅ |
+| Test coverage (overall) | 70.2% | 60%+ ✅ |
 | layout coverage | 81.9% | 80%+ ✅ |
 | styles coverage | 72.2% | 80%+ |
+| dialog coverage | 18.2% | 60%+ |
 | Managers wired | 3/3 | 3/3 ✅ |
 | Build passes | ✅ | ✅ |
 | CI passes | ✅ | ✅ |
