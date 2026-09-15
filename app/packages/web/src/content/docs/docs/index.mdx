@@ -1,0 +1,56 @@
+---
+title: Intro
+---
+
+Kotha is an AI coding agent built natively for the terminal. It features:
+
+- Native TUI for a smoother, snappier experience
+- Uses LSPs to help the LLM make fewer mistakes
+- Opening multiple conversations with the same project
+- Use of any model through the AI SDK
+- Tracks and visualizes all the file changes
+- Editing longer messages with Vim
+
+## Installation
+
+```bash
+npm i -g kotha
+```
+
+If you don't have NPM installed, you can also install the Kotha binary through the following.
+
+#### Using the install script
+
+```bash
+curl -fsSL https://kotha.khulnasoft.com/install | bash
+```
+
+Or install a specific version.
+
+```bash
+curl -fsSL https://kotha.khulnasoft.com/install | VERSION=0.1.0 bash
+```
+
+#### Using Homebrew on macOS and Linux
+
+
+
+#### Using AUR in Arch Linux
+
+With yay.
+
+```bash
+yay -S kotha-bin
+```
+
+Or with paru.
+
+```bash
+paru -S kotha-bin
+```
+
+#### Using Go
+
+```bash
+go install github.com/kothagpt/kotha@latest
+```

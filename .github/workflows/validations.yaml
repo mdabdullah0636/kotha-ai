@@ -32,4 +32,9 @@ jobs:
         uses: ./.github/actions/bootstrap
 
       - name: Run unit tests
-        run: make unit
+        run: go test -race -coverprofile=${{ github.workspace }}/coverage.txt ./...
+
+      - name: Check coverage
+        run: |
+          go tool cover -func=${{ github.workspace }}/coverage.txt | tail -1
+          python3 .github/scripts/coverage.py 28 ${{ github.workspace }}/coverage.txt

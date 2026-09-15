@@ -67,22 +67,6 @@ check-go-mod-tidy:
 test:  ## Run root module tests
 	@go test -v ./...
 
-.PHONY: app-test
-app-test:  ## Run bootstrap application tests
-	@cd bootstrap && go test -v ./...
-
-.PHONY: app-generate
-app-generate:  ## Generate Templ files for bootstrap app
-	@cd bootstrap && go run github.com/a-h/templ/cmd/templ@v0.3.865 generate
-
-.PHONY: app-build
-app-build: app-generate  ## Build bootstrap application for production
-	@cd bootstrap && make build
-
-.PHONY: app-dev
-app-dev:  ## Run bootstrap app in development mode (from bootstrap directory)
-	@cd bootstrap && make dev
-
 
 ## Halp! #################################
 

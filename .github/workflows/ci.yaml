@@ -15,10 +15,18 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.24"
+          cache: true
+          cache-dependency-path: go.sum
 
       - name: Run root tests
-        run: make test
+        run: go test -race -coverprofile=coverage.txt ./...
+
+      - name: Check coverage
+        run: python3 .github/scripts/coverage.py 28 coverage.txt
+
+      - name: Run fast checks
+        run: make check-go-mod-tidy check-licenses
 
       - name: Generate Templ files
         run: make app-generate

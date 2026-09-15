@@ -1,0 +1,17 @@
+// Bun Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`tool.ls basic 1`] = `
+"- /home/khulnasoft/dev/projects/khulnasoft/kotha/js/example/
+  - home/
+    - khulnasoft/
+      - dev/
+        - projects/
+          - khulnasoft/
+            - kotha/
+              - js/
+                - example/
+                  - ink.tsx
+                  - broken.ts
+                  - cli.ts
+"
+`;
